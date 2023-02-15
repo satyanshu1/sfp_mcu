@@ -1,11 +1,13 @@
 const String EXP_CMD = "send_data"; 
 enum DEV_STATES {WAIT_FOR_LORA_CMD, GET_PH, RSP_LORA};
 const uint8_t SCOUNT = 101; // sum of sample point
+const uint32_t TX_DELAY = 1000;
 double ADC_BUFF[SCOUNT]; //to store the sample adc readings
 char CHIP_ID[9];
 String RXPACKET, TXPACKET;
 double CUR_MEDIAN_ADC_VOLTAGE;
 DEV_STATES dev_state = WAIT_FOR_LORA_CMD;
+uint32_t tx_timer = 0;
 
 
 void setup()
@@ -46,20 +48,24 @@ void loop() {
                     char buff[200];
                     sprintf(buff, "CHIP_ID:%s, pH:%lf, ADC Volt-median:%lf, min:%lf, max:%lf", CHIP_ID, cur_ph, CUR_MEDIAN_ADC_VOLTAGE, ADC_BUFF[SCOUNT-1], ADC_BUFF[0]);
                     TXPACKET = String(buff);
+                    tx_timer = millis();
                 }
             }
             break;
         case RSP_LORA:
-            dev_state = WAIT_FOR_LORA_CMD;
-            
-            Serial.printf("Sending data %s over lora\n", TXPACKET.c_str());
-            if(lora_send(TXPACKET, 1000))
+            if(millis() - tx_timer >= TX_DELAY)
             {
-                Serial.printf("send success\n");
-            } 
-            else 
-            {
-                Serial.printf("send failed\n");
+                dev_state = WAIT_FOR_LORA_CMD;
+                
+                Serial.printf("Sending data %s over lora\n", TXPACKET.c_str());
+                if(lora_send(TXPACKET, 1000))
+                {
+                    Serial.printf("send success\n");
+                } 
+                else 
+                {
+                    Serial.printf("send failed\n");
+                }
             }
             break;
     }

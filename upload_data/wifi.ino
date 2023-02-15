@@ -38,42 +38,42 @@ int connect_to_wifi(){
     }
   }
   Serial.printf("WiFi %s not found in scanned networks\n", SSID.c_str());
+  write_to_display("WiFi: " + SSID + " not found in scanned networks");
   return 1;
 }
 
-void send_data_over_wifi(){
-  if(WiFi.status() == WL_CONNECTED)
-  {
-    // rest api communication
-    HTTPClient client;
-    int http_code;
-    client.begin(REST_API);
-
-    // get rest api
-    // http_code = client.GET();
-    // Serial.printf("GET status: %d, payload: %s \n", http_code, client.getString().c_str());
-
-    int index = RXPACKET.indexOf(":");
-    if (index != -1)
+void send_data_over_wifi(String &sensor_ser, String &sensor_val){
+    if(WiFi.status() == WL_CONNECTED)
     {
-      //put rest api
-      client.addHeader("Content-Type", "application/json");
-      StaticJsonDocument<300> doc;
-      doc["sensor_ser"] = RXPACKET.substring(0, index);
-      doc["sensor_type"] = SENSOR_TYPE;
-      doc["time_stamp"] = CUR_TIME;  // "2023-01-28T06:29:28.337973Z";
-      doc["sensor_value"] = RXPACKET.substring(index+1);
-      String json_out;
-      serializeJson(doc, json_out);
-      http_code = client.PUT(json_out);
-      String rest_api_pl = client.getString();
-      String msg = String("Server Upload Status:") + String(http_code) + String(", Payload:") + rest_api_pl;
-      write_to_display(msg);
-      Serial.printf("%s \n", msg.c_str());
+        update_time();
+        
+        // rest api communication
+        HTTPClient client;
+        int http_code;
+        client.begin(REST_API);
+
+        // get rest api
+        // http_code = client.GET();
+        // Serial.printf("GET status: %d, payload: %s \n", http_code, client.getString().c_str());
+
+        //put rest api
+        client.addHeader("Content-Type", "application/json");
+        StaticJsonDocument<300> doc;
+        doc["sensor_ser"] = sensor_ser;
+        doc["sensor_type"] = SENSOR_TYPE;
+        doc["time_stamp"] = CUR_TIME;  // "2023-01-28T06:29:28.337973Z";
+        doc["sensor_value"] = sensor_val;
+        String json_out;
+        serializeJson(doc, json_out);
+        http_code = client.PUT(json_out);
+        String rest_api_pl = client.getString();
+        String msg = String("Server Upload Status:") + String(http_code) + String(", Payload:") + rest_api_pl;
+        write_to_display(msg);
+        Serial.printf("%s \n", msg.c_str());    
+    } 
+    else
+    {
+        write_to_display("Can't send to server as network: " + SSID + " not available");
+        connect_to_wifi();
     }
-  } 
-  else
-  {
-    connect_to_wifi();
-  }
 }
